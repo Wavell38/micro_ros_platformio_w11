@@ -1,6 +1,8 @@
-# micro_ros_platformio_w11
+# micro_ros_platformio_windows
 
-This project is a fork of micro-ROS/micro_ros_platformio, adapted for native Windows usage in PlatformIO.
+micro_ros_platformio_windows is a fork of micro-ROS/micro_ros_platformio, adapted to improve native Windows support in PlatformIO.
+This fork has been validated primarily on a real Windows + RP2040 / Raspberry Pi Pico workflow.
+Other targets may work, but additional testing and adjustments may still be required.
 
 A PlatformIO-oriented fork of `micro_ros_platformio` focused on **native Windows support**.
 
@@ -12,9 +14,6 @@ It keeps the general `micro_ros_platformio` workflow, while adding the fixes nee
 * proper include/library export to PlatformIO projects,
 * easier consumption from a Git dependency,
 * RP2040 / Arduino-Pico project integration.
-
-This fork has been validated primarily through a real RP2040 / Raspberry Pi Pico project on Windows.
-Other boards and workflows may work, but may still require additional validation or adjustments.
 
 ## Scope
 
@@ -63,7 +62,7 @@ board_microros_distro = jazzy
 board_microros_transport = serial
 
 lib_deps =
-    https://github.com/Wavell38/micro_ros_platformio_w11.git
+    https://github.com/Wavell38/micro_ros_platformio_windows.git
 
 build_flags =
     -D USE_TINYUSB

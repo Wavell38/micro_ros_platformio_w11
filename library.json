@@ -1,8 +1,8 @@
 {
-    "name" : "micro_ros_platformio",
+    "name" : "micro_ros_platformio_windows",
     "version" : "0.0.1",
     "authors": [
-        {
+        {   
             "name": "Pablo Garrido",
             "email": "pablogarrido@eprosima.com",
             "maintainer": true
@@ -11,14 +11,20 @@
             "name": "Antonio Cuadros",
             "email": "antoniocuadros@eprosima.com",
             "maintainer": true
+        },
+        {   
+            "fork-author": true, 
+            "name": "Vincent Grange",
+            "email": "vincent.grange38@gmail.com",
+            "maintainer": true
         }
     ],
 
-    "description" : "micro-ROS Platform.IO library adapted for window 11",
+    "description" : "micro-ROS Platform.IO library adapted for windows",
     "homepage" : "https://micro.ros.org",
     "repository": {
         "type": "git",
-        "url": "https://github.com/Wavell38/micro_ros_platformio_w11.git"
+        "url": "https://github.com/Wavell38/micro_ros_platformio_windows.git"
     },
 
     "build": {
