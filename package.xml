@@ -3,8 +3,7 @@
 <package format="3">
   <name>micro_ros_platformio</name>
   <version>2.0.0</version>
-  <description>micro-ROS tools for Platform.IO</description>
-  <maintainer email="eugeniocollado@eprosima.com">Eugenio Collado</maintainer>
-  <maintainer email="carlosespinoza@eprosima.com">Carlos Espinoza</maintainer>
+  <description>micro-ROS tools for Platform.IO adapted for Windows</description>
+  <maintainer email="vincent.grange38@gmail.com">Vincent Grange</maintainer>
   <license>Apache License 2.0</license>
 </package>
