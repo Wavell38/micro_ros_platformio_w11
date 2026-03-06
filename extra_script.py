@@ -25,15 +25,15 @@ boards_metas = {
     "pico": "colcon.meta"
 }
 
-install_include_path = os.path.join(main_path, "build", "mcu", "install", "include")
-install_lib_path = os.path.join(main_path, "build", "mcu", "install", "lib")
-
 project_options = env.GetProjectConfig().items(env=env["PIOENV"], as_dict=True)
 main_path = os.path.realpath(".")
 global_env = DefaultEnvironment()
 board = env['BOARD']
 framework = env['PIOFRAMEWORK'][0]
 extra_packages_path = "{}/extra_packages".format(env['PROJECT_DIR'])
+
+install_include_path = os.path.join(main_path, "build", "mcu", "install", "include")
+install_lib_path = os.path.join(main_path, "build", "mcu", "install", "lib")
 
 selected_board_meta = boards_metas[board] if board in boards_metas else "colcon.meta"
 
