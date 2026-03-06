@@ -36,6 +36,14 @@
                 "-UCLIENT_PROFILE_STREAM_FRAMING=ON",
                 "-DUCLIENT_PROFILE_CUSTOM_TRANSPORT=ON"
             ]
+        },
+        "microcdr": {
+            "cmake-args": [
+                "-DUCDR_SUPERBUILD=OFF",
+                "-DUCDR_ISOLATED_INSTALL=OFF",
+                "-DUCDR_BUILD_TESTS=OFF",
+                "-DUCDR_BUILD_EXAMPLES=OFF"
+            ]
         }
     }
 }

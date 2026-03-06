@@ -1,8 +1,21 @@
-import os, sys
+import os, sys, shutil, subprocess
 import json
 import xml.etree.ElementTree as xml_parser
 
 from .utils import run_cmd
+
+def _run_git(args, cwd=None):
+    git = shutil.which("git") or shutil.which("git.exe")
+    if not git:
+        raise RuntimeError("git introuvable dans le PATH")
+
+    return subprocess.run(
+        [git, *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        errors="replace"
+    )
 
 class Package:
     def __init__(self, name, path):
@@ -26,20 +39,17 @@ class Repository:
 
     def clone(self, folder):
         self.path = folder + "/" + self.name
-        # TODO(pablogs) ensure that git is installed
+
         if os.path.exists(self.path):
-            command = f"cd {self.path} && git pull {self.url} {self.branch}"
-            result = run_cmd(command)
-            if 0 != result.returncode:
-                print(f"{self.name} pull failed: \n{result.stderr.decode('utf-8')}")
+            result = _run_git(["pull", self.url, self.branch], cwd=self.path)
+            if result.returncode != 0:
+                print(f"{self.name} pull failed:\n{result.stderr}")
                 sys.exit(1)
             return
 
-        command = "git clone -b {} {} {}".format(self.branch, self.url, self.path)
-        result = run_cmd(command)
-
-        if 0 != result.returncode:
-            print("{} clone failed: \n{}".format(self.name, result.stderr.decode("utf-8")))
+        result = _run_git(["clone", "-b", self.branch, self.url, self.path])
+        if result.returncode != 0:
+            print(f"{self.name} clone failed:\n{result.stderr}")
             sys.exit(1)
 
     def get_packages(self):
@@ -241,7 +251,7 @@ class Sources:
     ignore_packages = {
         'humble': ['rcl_logging_log4cxx', 'rcl_logging_spdlog', 'rcl_yaml_param_parser', 'rclc_examples'],
         'iron': ['test_tracetools', 'rcl_logging_spdlog', 'rcl_yaml_param_parser', 'rclc_examples'],
-        'jazzy': ['test_tracetools', 'rcl_logging_spdlog', 'rcl_yaml_param_parser', 'rclc_examples', 'lttngpy'],
+        'jazzy': ['test_tracetools', 'rcl_logging_spdlog', 'rcl_yaml_param_parser', 'rclc_examples', 'lttngpy', 'rcpputils'],
         'kilted': ['test_tracetools', 'rcl_logging_spdlog', 'rcl_yaml_param_parser', 'rclc_examples', 'lttngpy', 'rmw_security_common'],
         'rolling': ['test_tracetools', 'rcl_logging_spdlog', 'rcl_yaml_param_parser', 'rclc_examples', 'lttngpy', 'rmw_security_common']
     }

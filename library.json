@@ -14,11 +14,11 @@
         }
     ],
 
-    "description" : "micro-ROS Platform.IO library",
+    "description" : "micro-ROS Platform.IO library adapted for window 11",
     "homepage" : "https://micro.ros.org",
     "repository": {
         "type": "git",
-        "url": "https://github.com/micro-ROS/micro_ros_platformio.git"
+        "url": "https://github.com/Wavell38/micro_ros_platformio_w11.git"
     },
 
     "build": {

@@ -3,6 +3,7 @@ Import("env")
 
 import os
 import shutil
+import sys
 
 ##########################
 #### Global variables ####
@@ -22,8 +23,10 @@ boards_metas = {
     "due" : "colcon_verylowmem.meta",
     "zero" : "colcon_verylowmem.meta",
     "pico": "colcon.meta"
-
 }
+
+install_include_path = os.path.join(main_path, "build", "mcu", "install", "include")
+install_lib_path = os.path.join(main_path, "build", "mcu", "install", "lib")
 
 project_options = env.GetProjectConfig().items(env=env["PIOENV"], as_dict=True)
 main_path = os.path.realpath(".")
@@ -83,7 +86,7 @@ def build_microros(*args, **kwargs):
     ##############################
 
     pip_packages = [x.split("==")[0] for x in os.popen('{} -m pip freeze'.format(env['PYTHONEXE'])).read().split('\n')]
-    required_packages = ["catkin-pkg", "lark-parser", "colcon-common-extensions", "importlib-resources", "pyyaml", "pytz", "markupsafe==2.0.1", "empy==3.3.4"]
+    required_packages = ["catkin-pkg", "lark-parser", "colcon-common-extensions", "importlib-resources", "pyyaml", "pytz", "markupsafe==2.0.1", "empy==3.3.4", "ninja"]
     if all([x in pip_packages for x in required_packages]):
         print("All required Python pip packages are installed")
 
@@ -108,7 +111,10 @@ def build_microros(*args, **kwargs):
         "{} {} -fno-rtti -DCLOCK_MONOTONIC=0 -D'__attribute__(x)='".format(' '.join(env['CXXFLAGS']), ' '.join(env['CCFLAGS']))
     )
 
-    python_env_path = env['PROJECT_CORE_DIR'] + "/penv/bin/activate"
+    if sys.platform.startswith("win"):
+        python_env_path = env['PROJECT_CORE_DIR'] + "/penv/Scripts/activate"
+    else:
+        python_env_path = env['PROJECT_CORE_DIR'] + "/penv/bin/activate"
     builder = library_builder.Build(library_folder=main_path, packages_folder=extra_packages_path, distro=microros_distro, python_env=python_env_path)
     builder.run('{}/metas/{}'.format(main_path, selected_board_meta), cmake_toolchain.path, microros_user_meta)
 
@@ -126,16 +132,53 @@ def build_microros(*args, **kwargs):
 
     # Add library path
     global_env.Append(LIBPATH=[builder.library_path])
+    if os.path.isdir(install_lib_path):
+        global_env.Append(LIBPATH=[install_lib_path])
+
+def append_unique_paths(scons_env, key, paths):
+    current = [str(x) for x in scons_env.get(key, [])]
+    to_add = []
+    for p in paths:
+        if os.path.isdir(p) and p not in current and p not in to_add:
+            to_add.append(p)
+    if to_add:
+        scons_env.Append(**{key: to_add})
+
+
+def collect_generated_include_paths():
+    paths = []
+
+    # Racine principale d'installation
+    if os.path.isdir(install_include_path):
+        paths.append(install_include_path)
+
+        # Sous-dossiers directs : rcl, rmw, rclc, rcutils, etc.
+        for name in sorted(os.listdir(install_include_path)):
+            candidate = os.path.join(install_include_path, name)
+            if os.path.isdir(candidate):
+                paths.append(candidate)
+
+    # Include historique/complémentaire de la lib générée
+    libmicroros_include = os.path.join(main_path, "libmicroros", "include")
+    if os.path.isdir(libmicroros_include):
+        paths.append(libmicroros_include)
+
+    return paths
 
 def update_env():
     # Add required defines
     global_env.Append(CPPDEFINES=[("CLOCK_MONOTONIC", 1)])
 
-    # Add micro-ROS include path
-    global_env.Append(CPPPATH=[main_path + "/libmicroros/include"])
+    generated_include_paths = collect_generated_include_paths()
 
-    # Add micro-ROS include path to library include path
-    env.Append(CPPPATH=[main_path + "/libmicroros/include"])
+    # Pour le build global / link
+    append_unique_paths(global_env, "CPPPATH", generated_include_paths)
+
+    # Pour la compilation de la bibliothèque elle-même
+    append_unique_paths(env, "CPPPATH", generated_include_paths)
+
+    # Pour la compilation du projet utilisateur
+    append_unique_paths(projenv, "CPPPATH", generated_include_paths)
 
     # Add platformio library general include path
     global_env.Append(CPPPATH=[
