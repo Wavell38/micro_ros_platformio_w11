@@ -1,5 +1,7 @@
 # micro_ros_platformio_w11
 
+This project is a fork of micro-ROS/micro_ros_platformio, adapted for native Windows usage in PlatformIO.
+
 A PlatformIO-oriented fork of `micro_ros_platformio` focused on **native Windows support**.
 
 This fork is intended to make micro-ROS usable from PlatformIO on Windows without relying on WSL for the normal build flow.
@@ -10,6 +12,9 @@ It keeps the general `micro_ros_platformio` workflow, while adding the fixes nee
 * proper include/library export to PlatformIO projects,
 * easier consumption from a Git dependency,
 * RP2040 / Arduino-Pico project integration.
+
+This fork has been validated primarily through a real RP2040 / Raspberry Pi Pico project on Windows.
+Other boards and workflows may work, but may still require additional validation or adjustments.
 
 ## Scope
 
