@@ -1,256 +1,169 @@
-![banner](.images/banner-dark-theme.png#gh-dark-mode-only)
-![banner](.images/banner-light-theme.png#gh-light-mode-only)
+# micro_ros_platformio_w11
 
-# micro-ROS for PlatformIO
-This is a micro-ROS library for bare metal projects based on platformIO.
+A PlatformIO-oriented fork of `micro_ros_platformio` focused on **native Windows support**.
 
-The build process for ROS 2 and micro-ROS is based on custom meta-build system tools and [CMake](https://cmake.org/).
-PlatformIO will handle the full build process, including dependencies, compilation and linkage.
+This fork is intended to make micro-ROS usable from PlatformIO on Windows without relying on WSL for the normal build flow.
 
-- [micro-ROS for PlatformIO](#micro-ros-for-platformio)
-  - [Supported boards](#supported-boards)
-  - [Requirements](#requirements)
-  - [How to add to your project](#how-to-add-to-your-project)
-  - [Library configuration](#library-configuration)
-    - [ROS 2 distribution](#ros-2-distribution)
-    - [Transport configuration](#transport-configuration)
-    - [Extra packages](#extra-packages)
-    - [Other configuration](#other-configuration)
-  - [Extend library targets](#extend-library-targets)
-    - [Transport implementation](#transport-implementation)
-    - [Time source](#time-source)
-  - [Using the micro-ROS Agent](#using-the-micro-ros-agent)
-  - [Examples](#examples)
-  - [Purpose of the Project](#purpose-of-the-project)
-  - [License](#license)
-  - [Known Issues/Limitations](#known-issueslimitations)
+It keeps the general `micro_ros_platformio` workflow, while adding the fixes needed for:
 
-## Supported boards
-Supported boards are:
+* native Windows package generation,
+* proper include/library export to PlatformIO projects,
+* easier consumption from a Git dependency,
+* RP2040 / Arduino-Pico project integration.
 
-| Board                                        | Platform      | Framework   | Transports                               | Default meta file        |
-| -------------------------------------------- | ------------- | ----------- | ---------------------------------------- | ------------------------ |
-| `portenta_h7_m7`                             | `ststm32`     | `arduino`   | `serial` <br/> `wifi`                    | `colcon.meta`            |
-| `teensy41`                                   | `teensy`      | `arduino`   | `serial` <br/> `native_ethernet`         | `colcon.meta`            |
-| `teensy40`                                   | `teensy`      | `arduino`   | `serial`                                 | `colcon.meta`            |
-| `teensy36` <br/> `teensy35` <br/> `teensy31` | `teensy`      | `arduino`   | `serial`                                 | `colcon_lowmem.meta`     |
-| `due`                                        | `atmelsam`    | `arduino`   | `serial`                                 | `colcon_verylowmem.meta` |
-| `zero`                                       | `atmelsam`    | `arduino`   | `serial`                                 | `colcon_verylowmem.meta` |
-| `olimex_e407`                                | `ststm32`     | `arduino`   | `serial`                                 | `colcon.meta`            |
-| `esp32dev`                                   | `espressif32` | `arduino`   | `serial` <br/> `wifi` <br/> `ethernet`*   | `colcon.meta`            |
-| `nanorp2040connect`                          | `raspberrypi` | `arduino`   | `serial` <br/> `wifi_nina`               | `colcon_verylowmem.meta` |
-| `pico`  <br/> `pico2`                        | `raspberrypi` | `arduino`   | `serial`                                 | `colcon.meta`            |
+## Scope
 
-\* Community contributed
+This fork is primarily focused on **Windows** and has been validated mainly with:
 
-The community is encouraged to open pull request with custom use cases.
+* **Windows native build flow**,
+* **RP2040 / Raspberry Pi Pico** projects using **Arduino-Pico**,
+* PlatformIO projects consuming the library directly from Git.
 
-## Requirements
+Other boards and platforms may still work, but this fork is documented and maintained first for the Windows workflow.
 
-- PlatformIO [local installation](https://docs.platformio.org/en/stable/core/installation.html) or [PlatformIO IDE for VSCode](https://platformio.org/install/ide?install=vscode)
-- PlatformIO Core version 6.1.0 or greater
-- PlatformIO needs  `git`, `cmake` and `pip3` to handle micro-ROS internal dependencies:
+## What this fork changes
 
-  ```bash
-  apt install -y git cmake python3-pip
-  ```
-  
-### Platform specific requirements
+Compared to the upstream `micro_ros_platformio`, this fork is intended to:
 
-#### MacOS
+* build micro-ROS dependencies directly on Windows,
+* export generated include paths automatically to the user project,
+* export the required library paths automatically to the user project,
+* remain consumable through `lib_deps` with a Git URL,
+* keep project-side workarounds limited to target-specific cases only.
 
-XCode command line tools are distributed with toolchain that is not fully compatible with micro-ROS build process.
-To fix this, install GNU [binutils](https://www.gnu.org/software/binutils/) using [Homebrew](https://brew.sh/):
+## Installation in a PlatformIO project
 
-```bash
-brew install binutils
-```
+Add the dependency through Git in `platformio.ini`.
 
-## How to add to your project
+### Recommended Windows configuration
 
-The library can be included as a regular git library dependence on your `platform.ini` file:
+On Windows, **use short PlatformIO directories**.
 
-You may find a sample ini file at `ci/platformio.ini`.
+ROS 2 / micro-ROS generated paths can become very long, especially when the library is installed under `.pio/libdeps/...`. Using short directories avoids path-length issues during package generation.
+
+Example:
 
 ```ini
-...
+[platformio]
+workspace_dir = C:/.pio_mros
+libdeps_dir = C:/.pio_libdeps
+
+[env:pico]
+platform = https://github.com/maxgerhardt/platform-raspberrypi.git
+board = pico
+framework = arduino
+board_build.core = earlephilhower
+
+board_microros_distro = jazzy
+board_microros_transport = serial
+
 lib_deps =
-    https://github.com/micro-ROS/micro_ros_platformio
+    https://github.com/Wavell38/micro_ros_platformio_w11.git
+
+build_flags =
+    -D USE_TINYUSB
+
+extra_scripts =
+    pre:scripts/pio_prebuild.py
+    post:scripts/microros_rp2040_atomic_fix.py
 ```
 
-Now to proceed with the PlatformIO workflow:
+## Important notes
 
-```bash
-pio lib install # Install dependencies
-pio run # Build the firmware
-pio run --target upload # Flash the firmware
+### 1. Windows path length
+
+If you build this library from a Git dependency on Windows, long paths can break some generated ROS 2 packages.
+
+Symptoms can look like:
+
+* `Filename longer than 260 characters`
+* random failures in generated interface packages
+* failures inside `.pio/libdeps/.../build/mcu/build/...`
+
+The recommended fix is to use short values for:
+
+* `workspace_dir`
+* `libdeps_dir`
+
+as shown above.
+
+### 2. Project pre-build script
+
+If your project uses `.pio` source files (for example RP2040 PIO state machines), keep a small project-level pre-build script for `pioasm` generation.
+
+That script should only handle the project-specific `.pio` headers.
+
+The fork itself now exports the micro-ROS include and library paths automatically, so the project script should **not** hardcode any path to the fork.
+
+### 3. RP2040 / Arduino-Pico note
+
+For RP2040 / Pico projects using Arduino-Pico, a duplicate atomic symbol conflict may appear at link time depending on the toolchain / Pico SDK combination.
+
+This fork does **not** patch `libmicroros.a` globally.
+
+Instead, the recommended approach is:
+
+* keep the fork generic,
+* use an **optional project-level post-build script** for RP2040,
+* create a **local patched copy** of `libmicroros.a` for that project only,
+* redirect the linker for that environment only.
+
+This keeps the fork reusable for other boards and avoids mutating the shared archive globally.
+
+## Supported configuration keys
+
+This fork follows the usual micro-ROS PlatformIO project options:
+
+```ini
+board_microros_distro = jazzy
+board_microros_transport = serial
 ```
 
-After the library is compiled for first time the build process will be skipped, to trigger a library build and apply [library modifications](#library-configuration) on your next platformIO build:
+The exact set of working combinations depends on the target board and framework.
 
-```bash
-pio run --target clean_microros  # Clean library
+## Typical project layout
+
+A practical Windows/RP2040 project usually looks like this:
+
+```text
+project/
+├─ platformio.ini
+├─ scripts/
+│  ├─ pio_prebuild.py
+│  └─ microros_rp2040_atomic_fix.py
+└─ src/
+   ├─ main.cpp
+   ├─ step_gen.pio
+   └─ step_count.pio
 ```
 
-## Library configuration
-This section details the different configuration parameters available on the project `platform.ini` file.
-A explanation for adding custom targets is also present
+Where:
 
+* `pio_prebuild.py` generates `.pio.h` headers with `pioasm`,
+* `microros_rp2040_atomic_fix.py` is optional and only needed for the RP2040 atomic-symbol conflict case.
 
-### ROS 2 distribution
-The target ROS 2 distribution can be configured with the `board_microros_distro = <distribution>`, supported values are:
-  - `humble`
-  - `jazzy`
-  - `kilted` *(default value)*
-  - `rolling`
+## Current status
 
-### Transport configuration
-The transport can be configured with the `board_microros_transport = <transport>`, supported values and configurations are:
-  - `serial` *(default value)*
+This fork is intended to provide a practical Windows-native workflow for micro-ROS with PlatformIO.
 
-    ```c
-    Serial.begin(115200);
-    set_microros_serial_transports(Serial);
-    ```
+It has been adapted around real project usage and tested primarily on Windows with RP2040/Pico-based builds.
 
-  - `wifi`
-  - `wifi_nina`
+## Upstream reference
 
-    ```c
-    IPAddress agent_ip(192, 168, 1, 113);
-    size_t agent_port = 8888;
+This project is based on the original `micro_ros_platformio` work.
 
-    char ssid[] = "WIFI_SSID";
-    char psk[]= "WIFI_PSK";
+If you need the upstream project or broader original documentation, refer to:
 
-    set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
-    ```
+* `micro-ROS/micro_ros_platformio`
 
-  - `native_ethernet`
+## Summary
 
-    ```c
-    byte local_mac[] = { 0xAA, 0xBB, 0xCC, 0xEE, 0xDD, 0xFF };
-    IPAddress local_ip(192, 168, 1, 177);
-    IPAddress agent_ip(192, 168, 1, 113);
-    size_t agent_port = 8888;
+Use this fork if you want:
 
-    set_microros_native_ethernet_transports(local_mac, local_ip, agent_ip, agent_port);
-    ```
+* micro-ROS from PlatformIO,
+* native Windows build flow,
+* Git-based dependency usage,
+* automatic export of micro-ROS include/library paths,
+* a practical base for Pico / RP2040 projects.
 
-  - `ethernet`
-
-    ```c
-    IPAddress client_ip(192, 168, 1, 177);
-    IPAddress gateway(192, 168, 1, 1);
-    IPAddress netmask(255, 255, 255, 0);
-    IPAddress agent_ip(192, 168, 1, 113);
-    size_t agent_port = 8888;
-
-    // Optional hostname, defaults to nullptr (no hostname set)
-    set_microros_ethernet_transports(client_ip, gateway, netmask, agent_ip, agent_port, "my-microros-device");
-    ```
-
-  - `custom`
-
-    The user will need to write transport functions in app code and provide it to the micro-ROS library using [`rmw_uros_set_custom_transport()` API](https://micro.ros.org/docs/tutorials/advanced/create_custom_transports/)
-
-    ```c
-    bool platformio_transport_open(struct uxrCustomTransport * transport) {...};
-    bool platformio_transport_close(struct uxrCustomTransport * transport) {...};
-    size_t platformio_transport_write(struct uxrCustomTransport* transport, const uint8_t * buf, size_t len, uint8_t * err) {...};
-    size_t platformio_transport_read(struct uxrCustomTransport* transport, uint8_t* buf, size_t len, int timeout, uint8_t* err) {...};
-
-    rmw_uros_set_custom_transport(
-      MICROROS_TRANSPORTS_FRAMING_MODE, // Set the MICROROS_TRANSPORTS_FRAMING_MODE or MICROROS_TRANSPORTS_PACKET_MODE mode accordingly
-      NULL,
-      platformio_transport_open,
-      platformio_transport_close,
-      platformio_transport_write,
-      platformio_transport_read
-    );
-    ```
-
-### Extra packages
-Colcon packages can be added to the build process using this two methods:
-- Package directories copied on the `<Project_directory>/extra_packages` folder.
-- Git repositories included on the `<Project_directory>/extra_packages/extra_packages.repos` yaml file.
-
-This should be used for example when adding custom messages types or custom micro-ROS packages.
-
-### Other configuration
-Library packages can be configured with a customized meta file on the project main folder: `board_microros_user_meta = <file_name.meta>`.
-
-This allows the user to customize the library memory resources or activate optional functionality such as multithreading, including configuration of user [Extra packages](#extra-packages).
-
-- Documentation on available parameters can be found [here](https://micro.ros.org/docs/tutorials/advanced/microxrcedds_rmw_configuration) and [here]([microxrcedds_rmw_configuration](https://micro-xrce-dds.docs.eprosima.com/en/latest/client.html)).
-- Default configurations can be found on the [metas](./metas) folder.
-
-  *Note: the [common.meta](./metas/common.meta) file makes general adjustments to the library and shall not be modified by the user.*
-
-## Extend library targets
-This library can be easily adapted to different boards, transports or RTOS, to achieve this the user shall provide:
-
-### Transport implementation
-
-New transport implementations shall follow the signatures shown on [micro_ros_platformio.h](./platform_code/arduino/micro_ros_platformio.h), the [provided sources](./platform_code) can be used as reference along [this documentation](https://micro-xrce-dds.docs.eprosima.com/en/latest/transport.html#custom-transport). Contributed transport source code shall be added on the `./platform_code/<framework>/<board_microros_transport>` path. Example:
-
-- `platform.ini`:
-  ```ini
-  framework = arduino
-  board_microros_transport = wifi
-  ```
-- Transport source files: [platform_code/arduino/wifi](https://github.com/micro-ROS/micro_ros_platformio/tree/main/platform_code/arduino/wifi)
-- Also, a `MICRO_ROS_TRANSPORT_<FRAMEWORK>_<TRANSPORT>` definition will be available:
-  https://github.com/micro-ROS/micro_ros_platformio/blob/de7a61c7e86fdd0186ed8b7d8ec320994e8ebcbf/ci/src/main.cpp#L3
-
-  *Note: `board_microros_transport = custom` should not be used, as it is used to add custom transports on user app code*
-
-### Time source
-micro-ROS needs a time source to handle executor spins and synchronize reliable communication. To achieve this, a `clock_gettime` [POSIX compliant](https://linux.die.net/man/3/clock_gettime) implementation is required, with a minimum resolution of 1 millisecond.
-
-This method shall be included on a `clock_gettime.cpp` source file under the `./platform_code/<framework>/` path, an example implementation can be found on [clock_gettime.cpp](./platform_code/arduino/clock_gettime.cpp)
-
-## Using the micro-ROS Agent
-It is possible to use a **micro-ROS Agent** just by using this docker command:
-
-```bash
-# UDPv4 micro-ROS Agent
-docker run -it --rm -v /dev:/dev -v /dev/shm:/dev/shm --privileged --net=host microros/micro-ros-agent:$ROS_DISTRO udp4 --port 8888 -v6
-
-# Serial micro-ROS Agent
-docker run -it --rm -v /dev:/dev -v /dev/shm:/dev/shm --privileged --net=host microros/micro-ros-agent:$ROS_DISTRO serial --dev [YOUR BOARD PORT] -v6
-
-# TCPv4 micro-ROS Agent
-docker run -it --rm -v /dev:/dev -v /dev/shm:/dev/shm --privileged --net=host microros/micro-ros-agent:$ROS_DISTRO tcp4 --port 8888 -v6
-
-# CAN-FD micro-ROS Agent
-docker run -it --rm -v /dev:/dev -v /dev/shm:/dev/shm --privileged --net=host microros/micro-ros-agent:$ROS_DISTRO canfd --dev [YOUR CAN INTERFACE] -v6
-```
-
-For the supported transports, only the `serial` and `udp4` versions shall be used, although users can develop
-and use the agent to test their own `tcp4` and `canfd` custom transports.
-
-It is also possible to use custom transports on a `micro-XRCE Agent` instance. More info available [here](https://micro-xrce-dds.docs.eprosima.com/en/latest/agent.html#custom-transport-agent).
-
-## Examples
-A simple publisher project using serial transport is available on the [examples](./examples) directory, this examples is meant to be modified with the user board.
-
-- More micro-ROS usage examples are available on [micro-ROS-demos/rclc](https://github.com/micro-ROS/micro-ROS-demos/tree/jazzy/rclc).
-- For a complete micro-ROS tutorial, check [Programming with rcl and rclc](https://micro.ros.org/docs/tutorials/programming_rcl_rclc/overview/) documentation.
-- Community contributed tutorials for beginners with [examples ported from micro_ros_arduino](https://github.com/hippo5329/micro_ros_arduino_examples_platformio/wiki) and [examples ported from micro-ROS-demos](https://github.com/hippo5329/micro-ROS-demos-platformio/wiki).
-
-## Purpose of the Project
-
-This software is not ready for production use. It has neither been developed nor
-tested for a specific use case. However, the license conditions of the
-applicable Open Source licenses allow you to adapt the software to your needs.
-Before using it in a safety relevant setting, make sure that the software
-fulfills your requirements and adjust it according to any applicable safety
-standards, e.g., ISO 26262.
-
-## License
-
-This repository is open-sourced under the Apache-2.0 license. See the [LICENSE](LICENSE) file for details.
-
-For a list of other open-source components included in this repository,
-see the file [3rd-party-licenses.txt](3rd-party-licenses.txt).
+If your target is RP2040 and you hit a final link conflict, keep that fix at the **project level**, not as a global mutation of the shared library.
